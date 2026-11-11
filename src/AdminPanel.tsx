@@ -20,6 +20,7 @@ export default function AdminPanel() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [authorized, setAuthorized] = useState(false);
   const [adminName, setAdminName] = useState('Administrator');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -68,6 +69,7 @@ export default function AdminPanel() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const ok = await verifyAdmin(session.user.id);
+        if (alive) setAuthorized(ok);
         if (alive && ok) await loadData();
         if (alive && !ok) {
           await supabase.auth.signOut();
@@ -93,6 +95,7 @@ export default function AdminPanel() {
         await supabase.auth.signOut();
         setError('This account is not authorized as the school Admin. Ask the project administrator to provision the Admin role securely.');
       } else {
+        setAuthorized(true);
         await loadData();
       }
     }
@@ -101,7 +104,7 @@ export default function AdminPanel() {
 
   async function signOut() {
     if (supabase) await supabase.auth.signOut();
-    setTab('dashboard'); setPassword(''); setError(''); setMessage('');
+    setAuthorized(false); setTab('dashboard'); setPassword(''); setError(''); setMessage('');
   }
 
   async function addStudent(event: FormEvent) {
@@ -139,29 +142,6 @@ export default function AdminPanel() {
   }
 
   if (checking) return <div className="admin-loading">Checking secure Admin session…</div>;
-
-  if (!supabase || !((globalThis as typeof globalThis & { __unused?: boolean }).__unused)) {
-    // The login form remains available when Supabase is configured; authorization is checked after sign-in.
-  }
-
-  const signedIn = Boolean(supabase && adminName && !error && counts && (adminName !== ''));
-  // A verified session is tracked by checking the current session on this component's state.
-  const [authorized, setAuthorized] = useState(false);
-  useEffect(() => {
-    if (!supabase) return;
-    let active = true;
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session?.user) {
-        const ok = await verifyAdmin(data.session.user.id);
-        if (active) setAuthorized(ok);
-      } else if (active) setAuthorized(false);
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) setAuthorized(false);
-      else void verifyAdmin(session.user.id).then(setAuthorized);
-    });
-    return () => { active = false; listener.subscription.unsubscribe(); };
-  }, [verifyAdmin]);
 
   if (!authorized) return <div className="admin-login-wrap">
     <form className="admin-login-card" onSubmit={signIn}>
