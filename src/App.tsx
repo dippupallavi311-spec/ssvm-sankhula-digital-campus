@@ -6,7 +6,10 @@ type Cl={id:string;name_en:string;name_or:string;sort_order:number};
 type Media={id:string;title:string;image_url?:string;description?:string};
 const classes=[['ARUNA','ଅରୁଣ'],['UDAYA','ଉଦୟ'],['KIRAN','କିରଣ'],['CLASS 1','ପ୍ରଥମ ଶ୍ରେଣୀ'],['CLASS 2','ଦ୍ୱିତୀୟ ଶ୍ରେଣୀ'],['CLASS 3','ତୃତୀୟ ଶ୍ରେଣୀ'],['CLASS 4','ଚତୁର୍ଥ ଶ୍ରେଣୀ'],['CLASS 5','ପଞ୍ଚମ ଶ୍ରେଣୀ'],['CLASS 6','ଷଷ୍ଠ ଶ୍ରେଣୀ'],['CLASS 7','ସପ୍ତମ ଶ୍ରେଣୀ'],['CLASS 8','ଅଷ୍ଟମ ଶ୍ରେଣୀ'],['CLASS 9','ନବମ ଶ୍ରେଣୀ'],['CLASS 10','ଦଶମ ଶ୍ରେଣୀ']];
 export default function App(){
- if (window.location.pathname.replace(/\/$/, '') === '/admin') return <AdminPanel/>;
+ return window.location.pathname.replace(/\/$/, '') === '/admin' ? <AdminPanel/> : <PublicHome/>;
+}
+
+function PublicHome(){
  const[odia,setOdia]=useState(true),[menu,setMenu]=useState(false),[admission,setAdmission]=useState(false),[notice,setNotice]=useState(''),[sending,setSending]=useState(false);
  const[groups,setGroups]=useState<Cl[]>([]),[gallery,setGallery]=useState<Media[]>([]),[wins,setWins]=useState<Media[]>([]);
  const[form,setForm]=useState({student_name:'',parent_name:'',mobile_number:'',class_applied:'',message:''});
