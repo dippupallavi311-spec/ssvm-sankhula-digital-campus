@@ -15,7 +15,7 @@ Copy .env.example to .env.local, set the Supabase URL and publishable key, then 
 
 Never put service-role/secret keys, passwords, Razorpay credentials, AI keys or student personal data in frontend code or GitHub. These belong in protected server-side secrets and RLS-controlled workflows.
 
-Capacity values shown on the homepage are planned targets, not verified enrolment statistics. Student/teacher authentication, Admin console, fees, exams, AI and payment integration are not implemented yet.
+Capacity values shown on the homepage are planned targets, not verified enrolment statistics. Student/teacher authentication, full fee and exam workflows, AI and payment integration remain future implementation tasks; the Admin panel foundation is now present.
 
 
 ## Admin panel foundation
