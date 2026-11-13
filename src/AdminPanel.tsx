@@ -42,7 +42,6 @@ function normalizeCsvKey(value: string) {
 
 export default function AdminPanel() {
   const [tab, setTab] = useState<Tab>('dashboard');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -116,9 +115,11 @@ export default function AdminPanel() {
 
   async function signIn(event: FormEvent) {
     event.preventDefault(); if (!supabase) return;
+    const adminEmail = import.meta.env.VITE_ADMIN_LOGIN_EMAIL?.trim();
+    if (!adminEmail) { setError('Admin login is not configured. An authorized school administrator must set VITE_ADMIN_LOGIN_EMAIL in the hosting environment.'); return; }
     setBusy(true); setError(''); setMessage('');
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    if (authError || !data.user) setError('Login failed. Check the Admin email and password.');
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: adminEmail, password });
+    if (authError || !data.user) setError('Login failed. Check the Admin password or the configured account.');
     else {
       const ok = await verifyAdmin(data.user.id);
       if (!ok) { await supabase.auth.signOut(); setError('This account is not authorized as the school Admin.'); }
@@ -271,10 +272,9 @@ export default function AdminPanel() {
     <div className="admin-brand-mark"><School size={28}/></div><span className="admin-eyebrow">SSVM SANKHULA · SECURE ACCESS</span><h1>Admin Login</h1>
     <p>Only the authorized school administrator can access this control panel.</p>
     {error && <div className="admin-alert error">{error}</div>}
-    <label>Admin Email<input type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="Admin email"/></label>
     <label>Password<input type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)} placeholder="Enter password"/></label>
     <button className="admin-primary" disabled={busy}>{busy?'Verifying…':'Secure Login'}</button><a href="/" className="admin-back">← Back to school website</a>
-    <small>Admin accounts are provisioned privately. There is no public Admin sign-up.</small>
+    <small>Admin accounts are provisioned privately. Login requires only the Admin password; the official account email is configured securely by the school administrator.</small>
   </form></div>;
 
   const nav: { id: Tab; icon: typeof LayoutDashboard }[] = [{id:'dashboard',icon:LayoutDashboard},{id:'students',icon:GraduationCap},{id:'teachers',icon:Users},{id:'admissions',icon:BookOpen},{id:'notices',icon:Megaphone},{id:'settings',icon:ShieldCheck}];
