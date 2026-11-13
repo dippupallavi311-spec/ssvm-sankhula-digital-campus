@@ -1,15 +1,44 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { supabase } from './lib/supabase';
 import { Activity, Bell, BookOpen, ChevronRight, GraduationCap, LayoutDashboard, LogOut, Megaphone, Plus, School, ShieldCheck, Users, Pencil, UserX } from 'lucide-react';
 import './admin.css';
 
 type Tab = 'dashboard' | 'students' | 'teachers' | 'admissions' | 'notices' | 'settings';
-type ClassGroup = { id: string; name_en: string; name_or: string; sort_order: number };
+type ClassGroup = { id: string; code: string; name_en: string; name_or: string; sort_order: number };
+type StudentImportRow = { student_name: string; class_id: string; roll_no: string | null; dob: string | null; father_name: string | null; mother_name: string | null; mobile_number: string | null };
 type Student = { id: string; student_name: string; roll_no: string | null; mobile_number: string | null; active: boolean; class_id: string; dob?: string | null; father_name?: string | null; mother_name?: string | null };
 type Enquiry = { id: string; student_name: string; parent_name: string; mobile_number: string; class_applied: string; status: string; created_at: string };
 type TeacherProfile = { auth_user_id: string; full_name: string; phone_number: string; employee_code: string | null; designation: string; active: boolean };
 const labels: Record<Tab, string> = { dashboard: 'Dashboard', students: 'Students', teachers: 'Teachers', admissions: 'Admission Enquiries', notices: 'Notices', settings: 'School Settings' };
+
+function parseCsvRows(input: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i];
+    if (char === '"') {
+      if (quoted && input[i + 1] === '"') { field += '"'; i += 1; }
+      else quoted = !quoted;
+    } else if (char === ',' && !quoted) {
+      row.push(field.trim()); field = '';
+    } else if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && input[i + 1] === '\n') i += 1;
+      row.push(field.trim()); field = '';
+      if (row.some((cell) => cell.length > 0)) rows.push(row);
+      row = [];
+    } else field += char;
+  }
+  row.push(field.trim());
+  if (row.some((cell) => cell.length > 0)) rows.push(row);
+  return rows;
+}
+function normalizeCsvKey(value: string) {
+  return value.normalize('NFKC').trim().toLocaleLowerCase().replace(/[\\s_\\-]+/g, '');
+}
+
 
 export default function AdminPanel() {
   const [tab, setTab] = useState<Tab>('dashboard');
@@ -33,6 +62,11 @@ export default function AdminPanel() {
   const [teacherForm, setTeacherForm] = useState({ full_name: '', phone_number: '', password: '', employee_code: '', designation: 'Teacher', qualification: '', subject: '' });
   const [teacherClassIds, setTeacherClassIds] = useState<string[]>([]);
   const [noticeForm, setNoticeForm] = useState({ title: '', body: '', audience: 'all' });
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [importPreview, setImportPreview] = useState<StudentImportRow[]>([]);
+  const [importIssueCount, setImportIssueCount] = useState(0);
+  const [importFileName, setImportFileName] = useState('');
+  const [importBusy, setImportBusy] = useState(false);
 
   const verifyAdmin = useCallback(async (userId: string) => {
     if (!supabase) return false;
@@ -49,7 +83,7 @@ export default function AdminPanel() {
       supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('role', 'teacher').eq('active', true),
       supabase.from('admission_enquiries').select('*', { count: 'exact', head: true }),
       supabase.from('notices').select('*', { count: 'exact', head: true }),
-      supabase.from('class_groups').select('id,name_en,name_or,sort_order').order('sort_order'),
+      supabase.from('class_groups').select('id,code,name_en,name_or,sort_order').order('sort_order'),
       supabase.from('students').select('id,student_name,roll_no,mobile_number,active,class_id,dob,father_name,mother_name').order('student_name').limit(500),
       supabase.from('teacher_details').select('auth_user_id,full_name,phone_number,employee_code,designation,active').order('full_name').limit(100),
       supabase.from('admission_enquiries').select('id,student_name,parent_name,mobile_number,class_applied,status,created_at').order('created_at', { ascending: false }).limit(100)
@@ -119,6 +153,98 @@ export default function AdminPanel() {
     else { setMessage('Student marked inactive. Existing records were preserved.'); await loadData(); }
     setBusy(false);
   }
+
+  async function prepareStudentCsv(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    setError(''); setMessage(''); setImportPreview([]); setImportIssueCount(0);
+    if (file.size > 2 * 1024 * 1024) { setError('CSV file is too large. Please keep it under 2 MB.'); event.currentTarget.value = ''; return; }
+    if (!file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv') { setError('Please choose a CSV file.'); event.currentTarget.value = ''; return; }
+    try {
+      const rows = parseCsvRows((await file.text()).replace(/^\\uFEFF/, ''));
+      if (rows.length < 2) throw new Error('The CSV file has no student rows.');
+      const headers = rows[0].map(normalizeCsvKey);
+      const findColumn = (...names: string[]) => headers.findIndex((h) => names.includes(h));
+      const nameCol = findColumn('studentname', 'name');
+      const classCol = findColumn('classcode', 'classname', 'class', 'classgroup');
+      if (nameCol < 0 || classCol < 0) throw new Error('CSV needs student_name and class_code or class_name columns.');
+      const col = {
+        roll: findColumn('rollno', 'rollnumber'),
+        dob: findColumn('dob', 'dateofbirth'),
+        father: findColumn('fathername', 'father'),
+        mother: findColumn('mothername', 'mother'),
+        mobile: findColumn('mobilenumber', 'mobile', 'phone')
+      };
+      const classMap = new Map<string, string>();
+      groups.forEach((group) => [group.code, group.name_en, group.name_or].forEach((name) => classMap.set(normalizeCsvKey(name), group.id)));
+      const preview: StudentImportRow[] = [];
+      let issues = 0;
+      for (const cells of rows.slice(1)) {
+        const value = (index: number) => index < 0 ? '' : (cells[index] || '').trim();
+        const student_name = value(nameCol);
+        const class_id = classMap.get(normalizeCsvKey(value(classCol)));
+        if (!student_name || !class_id) { issues += 1; continue; }
+        const dobValue = value(col.dob);
+        const dob = dobValue || null;
+        if (dob && (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dob) || Number.isNaN(Date.parse(dob + 'T00:00:00Z')))) { issues += 1; continue; }
+        const mobileValue = value(col.mobile).replace(/\\D/g, '');
+        if (mobileValue && mobileValue.length !== 10) { issues += 1; continue; }
+        preview.push({
+          student_name,
+          class_id,
+          roll_no: value(col.roll) || null,
+          dob,
+          father_name: value(col.father) || null,
+          mother_name: value(col.mother) || null,
+          mobile_number: mobileValue || null
+        });
+      }
+      if (!preview.length) throw new Error('No valid student rows found. Check the class names/codes and required columns.');
+      setImportPreview(preview); setImportIssueCount(issues); setImportFileName(file.name);
+      setMessage('CSV checked. Review the valid row count before importing. No records have been saved yet.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not read this CSV file.');
+    } finally {
+      event.currentTarget.value = '';
+    }
+  }
+
+  async function confirmStudentImport() {
+    if (!supabase || !importPreview.length) return;
+    setImportBusy(true); setError(''); setMessage('');
+    const { data: existing, error: existingError } = await supabase.from('students').select('student_name,class_id,roll_no,dob,mobile_number').limit(5000);
+    if (existingError || !existing) {
+      setError('Could not check existing records. Nothing was imported.');
+      setImportBusy(false); return;
+    }
+    const keyFor = (row: { student_name: string; class_id: string; roll_no?: string | null; dob?: string | null; mobile_number?: string | null }) =>
+      row.roll_no ? row.class_id + '|roll|' + normalizeCsvKey(row.roll_no) :
+      row.class_id + '|' + normalizeCsvKey(row.student_name) + '|' + (row.dob || '') + '|' + (row.mobile_number || '');
+    const seen = new Set(existing.map(keyFor));
+    const uniqueRows = importPreview.filter((row) => {
+      const key = keyFor(row);
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    });
+    const duplicateCount = importPreview.length - uniqueRows.length;
+    let inserted = 0;
+    for (let offset = 0; offset < uniqueRows.length; offset += 50) {
+      const batch = uniqueRows.slice(offset, offset + 50);
+      const { error: insertError } = await supabase.from('students').insert(batch);
+      if (insertError) {
+        setError('Import stopped after ' + inserted + ' records. The remaining rows were not imported. Check Admin permissions and retry after reviewing the database.');
+        break;
+      }
+      inserted += batch.length;
+    }
+    if (inserted > 0 || uniqueRows.length === 0) {
+      setMessage('Import finished: ' + inserted + ' added, ' + duplicateCount + ' duplicates skipped, ' + importIssueCount + ' invalid rows skipped. Fee figures are intentionally not imported by this student-profile tool.');
+      setImportPreview([]); setImportIssueCount(0); setImportFileName('');
+      await loadData();
+    }
+    setImportBusy(false);
+  }
+
   async function createTeacher(event: FormEvent) {
     event.preventDefault(); if (!supabase || !teacherClassIds.length) return;
     setBusy(true); setError(''); setMessage('');
@@ -162,6 +288,20 @@ export default function AdminPanel() {
         <section className="admin-panel-card"><div className="admin-card-heading"><div><h3>Quick Actions</h3><p>Common school administration tasks</p></div></div><div className="admin-quick-grid"><button onClick={()=>{setTab('students');setShowStudentForm(true)}}><GraduationCap/><b>Add Student</b><small>Create a real student record</small></button><button onClick={()=>{setTab('teachers');setShowTeacherForm(true)}}><Users/><b>Add Teacher</b><small>Create secure teacher access</small></button><button onClick={()=>setTab('admissions')}><BookOpen/><b>Admission Enquiries</b><small>Review new enquiries</small></button><button onClick={()=>setTab('notices')}><Megaphone/><b>Publish Notice</b><small>Share school announcements</small></button></div></section>
         <section className="admin-panel-card"><div className="admin-card-heading"><div><h3>Campus Structure</h3><p>All 13 school class groups</p></div><span className="admin-count-pill">{groups.length} classes</span></div><div className="admin-class-list">{groups.map(g=><span key={g.id}>{g.name_en}</span>)}</div></section></>}
       {tab==='students'&&<section className="admin-panel-card"><div className="admin-card-heading"><div><h3>Student Records</h3><p>Admin-managed records. No demo data is created.</p></div><button className="admin-primary compact" onClick={()=>{resetStudentForm();setShowStudentForm(true)}}><Plus size={16}/> Add Student</button></div>
+
+        <div className="student-import-panel">
+          <div><b>Import verified student CSV</b><p>Upload a CSV with student_name and class_code or class_name. Optional columns: roll_no, dob, father_name, mother_name, mobile_number. Files stay in this browser; student records are saved only after you confirm.</p></div>
+          <input ref={importFileRef} type="file" accept=".csv,text/csv" hidden onChange={prepareStudentCsv}/>
+          <button type="button" className="admin-secondary" onClick={()=>importFileRef.current?.click()} disabled={importBusy}>Choose CSV file</button>
+          {importFileName && <small>Selected: {importFileName}</small>}
+          {importPreview.length > 0 && <div className="student-import-review">
+            <strong>{importPreview.length} valid rows ready</strong>
+            <span>{importIssueCount} invalid rows will be skipped. Existing duplicates will be checked again before saving.</span>
+            <small>Preview: {importPreview.slice(0, 5).map((row)=>row.student_name).join(', ')}</small>
+            <div className="admin-form-actions"><button type="button" className="admin-secondary" onClick={()=>{setImportPreview([]);setImportFileName('');setImportIssueCount(0)}} disabled={importBusy}>Cancel import</button><button type="button" className="admin-primary" onClick={confirmStudentImport} disabled={importBusy}>{importBusy?'Importing…':'Confirm import'}</button></div>
+          </div>}
+          <small>Privacy: do not upload this CSV to public GitHub. This tool does not import fee balances; those will be handled in the fee ledger separately.</small>
+        </div>
         {showStudentForm&&<form className="admin-student-form" onSubmit={saveStudent}><label>Student Name<input required value={studentForm.student_name} onChange={e=>setStudentForm({...studentForm,student_name:e.target.value})}/></label><label>Class<select required value={studentForm.class_id} onChange={e=>setStudentForm({...studentForm,class_id:e.target.value})}><option value="">Select class</option>{groups.map(g=><option key={g.id} value={g.id}>{g.name_en}</option>)}</select></label><label>Roll Number<input value={studentForm.roll_no} onChange={e=>setStudentForm({...studentForm,roll_no:e.target.value})}/></label><label>Date of Birth<input type="date" value={studentForm.dob} onChange={e=>setStudentForm({...studentForm,dob:e.target.value})}/></label><label>Father Name<input value={studentForm.father_name} onChange={e=>setStudentForm({...studentForm,father_name:e.target.value})}/></label><label>Mother Name<input value={studentForm.mother_name} onChange={e=>setStudentForm({...studentForm,mother_name:e.target.value})}/></label><label>Mobile Number<input inputMode="numeric" maxLength={10} value={studentForm.mobile_number} onChange={e=>setStudentForm({...studentForm,mobile_number:e.target.value.replace(/\D/g,'').slice(0,10)})}/></label><div className="admin-form-actions"><button type="button" className="admin-secondary" onClick={resetStudentForm}>Cancel</button><button className="admin-primary" disabled={busy}>{busy?'Saving…':editingStudentId?'Update Student':'Save Student'}</button></div></form>}
         <div className="admin-table-wrap"><table><thead><tr><th>Student</th><th>Roll No.</th><th>Class</th><th>Mobile</th><th>Status</th><th>Actions</th></tr></thead><tbody>{students.map(s=><tr key={s.id}><td>{s.student_name}</td><td>{s.roll_no||'—'}</td><td>{groups.find(g=>g.id===s.class_id)?.name_en||'—'}</td><td>{s.mobile_number||'—'}</td><td><span className={s.active?'status-active':'status-inactive'}>{s.active?'Active':'Inactive'}</span></td><td><div className="admin-row-actions"><button type="button" title="Edit student" onClick={()=>startEditStudent(s)}><Pencil size={15}/></button>{s.active&&<button type="button" title="Mark inactive" onClick={()=>deactivateStudent(s)} disabled={busy}><UserX size={15}/></button>}</div></td></tr>)}</tbody></table>{students.length===0&&<div className="admin-empty">No student records yet. Add or import the school's verified list.</div>}</div>
       </section>}
