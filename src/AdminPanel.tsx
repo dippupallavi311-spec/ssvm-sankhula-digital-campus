@@ -36,7 +36,7 @@ function parseCsvRows(input: string): string[][] {
   return rows;
 }
 function normalizeCsvKey(value: string) {
-  return value.normalize('NFKC').trim().toLocaleLowerCase().replace(/[\\s_\\-]+/g, '');
+  return value.normalize('NFKC').trim().toLocaleLowerCase().replace(/[\s_\-]+/g, '');
 }
 
 
@@ -162,7 +162,7 @@ export default function AdminPanel() {
     if (file.size > 2 * 1024 * 1024) { setError('CSV file is too large. Please keep it under 2 MB.'); input.value = ''; return; }
     if (!file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv') { setError('Please choose a CSV file.'); input.value = ''; return; }
     try {
-      const rows = parseCsvRows((await file.text()).replace(/^\\uFEFF/, ''));
+      const rows = parseCsvRows((await file.text()).replace(/^\uFEFF/, ''));
       if (rows.length < 2) throw new Error('The CSV file has no student rows.');
       const headers = rows[0].map(normalizeCsvKey);
       const findColumn = (...names: string[]) => headers.findIndex((h) => names.includes(h));
@@ -187,8 +187,8 @@ export default function AdminPanel() {
         if (!student_name || !class_id) { issues += 1; continue; }
         const dobValue = value(col.dob);
         const dob = dobValue || null;
-        if (dob && (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dob) || Number.isNaN(Date.parse(dob + 'T00:00:00Z')))) { issues += 1; continue; }
-        const mobileValue = value(col.mobile).replace(/\\D/g, '');
+        if (dob && (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || Number.isNaN(Date.parse(dob + 'T00:00:00Z')))) { issues += 1; continue; }
+        const mobileValue = value(col.mobile).replace(/\D/g, '');
         if (mobileValue && mobileValue.length !== 10) { issues += 1; continue; }
         preview.push({
           student_name,
