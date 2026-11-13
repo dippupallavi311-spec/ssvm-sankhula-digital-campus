@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { supabase } from './lib/supabase';
 import { Activity, Bell, BookOpen, ChevronRight, GraduationCap, LayoutDashboard, LogOut, Megaphone, Plus, School, ShieldCheck, Users, Pencil, UserX } from 'lucide-react';
 import './admin.css';
@@ -154,12 +154,13 @@ export default function AdminPanel() {
     setBusy(false);
   }
 
-  async function prepareStudentCsv(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.currentTarget.files?.[0];
+  async function prepareStudentCsv(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
     setError(''); setMessage(''); setImportPreview([]); setImportIssueCount(0);
-    if (file.size > 2 * 1024 * 1024) { setError('CSV file is too large. Please keep it under 2 MB.'); event.currentTarget.value = ''; return; }
-    if (!file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv') { setError('Please choose a CSV file.'); event.currentTarget.value = ''; return; }
+    if (file.size > 2 * 1024 * 1024) { setError('CSV file is too large. Please keep it under 2 MB.'); input.value = ''; return; }
+    if (!file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv') { setError('Please choose a CSV file.'); input.value = ''; return; }
     try {
       const rows = parseCsvRows((await file.text()).replace(/^\\uFEFF/, ''));
       if (rows.length < 2) throw new Error('The CSV file has no student rows.');
@@ -205,7 +206,7 @@ export default function AdminPanel() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not read this CSV file.');
     } finally {
-      event.currentTarget.value = '';
+      input.value = '';
     }
   }
 
