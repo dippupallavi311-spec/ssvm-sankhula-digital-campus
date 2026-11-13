@@ -187,7 +187,7 @@ export default function AdminPanel() {
         if (!student_name || !class_id) { issues += 1; continue; }
         const dobValue = value(col.dob);
         const dob = dobValue || null;
-        if (dob && (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || Number.isNaN(Date.parse(dob + 'T00:00:00Z')))) { issues += 1; continue; }
+        if (dob) { const parts = dob.split('-').map(Number); const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])); if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || date.getUTCFullYear() !== parts[0] || date.getUTCMonth() !== parts[1] - 1 || date.getUTCDate() !== parts[2]) { issues += 1; continue; } }
         const mobileValue = value(col.mobile).replace(/\D/g, '');
         if (mobileValue && mobileValue.length !== 10) { issues += 1; continue; }
         preview.push({
@@ -229,16 +229,18 @@ export default function AdminPanel() {
     });
     const duplicateCount = importPreview.length - uniqueRows.length;
     let inserted = 0;
+    let failed = false;
     for (let offset = 0; offset < uniqueRows.length; offset += 50) {
       const batch = uniqueRows.slice(offset, offset + 50);
       const { error: insertError } = await supabase.from('students').insert(batch);
       if (insertError) {
-        setError('Import stopped after ' + inserted + ' records. The remaining rows were not imported. Check Admin permissions and retry after reviewing the database.');
+        setError('Import stopped after ' + inserted + ' records. The remaining rows were not imported. Check Admin permissions and retry; already imported rows will be detected as duplicates.');
+        failed = true;
         break;
       }
       inserted += batch.length;
     }
-    if (inserted > 0 || uniqueRows.length === 0) {
+    if (!failed && (inserted > 0 || uniqueRows.length === 0)) {
       setMessage('Import finished: ' + inserted + ' added, ' + duplicateCount + ' duplicates skipped, ' + importIssueCount + ' invalid rows skipped. Fee figures are intentionally not imported by this student-profile tool.');
       setImportPreview([]); setImportIssueCount(0); setImportFileName('');
       await loadData();
