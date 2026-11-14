@@ -8,6 +8,9 @@ Mobile-first PWA foundation for Saraswati Shishu Vidya Mandir, Sankhula, Bhadrak
 - Published gallery and achievements read from Supabase
 - Admission enquiry form writes to the existing admission_enquiries table
 - PWA manifest, placeholder crest icon and service-worker shell caching
+- Secure teacher phone/password login at `/teacher`, restricted to Admin-created teacher accounts
+- Teacher daily-learning-note submission with Admin approval before publication
+- Student access information page at `/student`; student sign-in remains disabled until verified OTP delivery is configured
 - No demo student or teacher records
 
 ## Setup
