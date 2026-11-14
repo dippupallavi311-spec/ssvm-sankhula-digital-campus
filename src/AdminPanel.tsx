@@ -276,20 +276,21 @@ export default function AdminPanel() {
     setError(''); setMessage(''); setFeeImportPreview([]); setFeeImportIssues(0);
     if (file.size > 2 * 1024 * 1024) { setError('Fee CSV must be under 2 MB.'); input.value=''; return; }
     try {
-      const rows = parseCsvRows((await file.text()).replace(/^\\uFEFF/, ''));
+      const rows = parseCsvRows((await file.text()).replace(/^\uFEFF/, ''));
       if (rows.length < 2) throw new Error('Fee CSV has no data rows.');
       const headers = rows[0].map(normalizeCsvKey);
       const col = (...names:string[]) => headers.findIndex(h=>names.includes(h));
       const ix = {name:col('studentname','name'), cls:col('classname','classcode','class'), roll:col('rollno','rollnumber'), school:col('schoolfee'), tuition:col('tuitionfee'), vehicle:col('vehiclefee'), paid:col('totalpaid','openingpaid')};
       if ([ix.name,ix.cls,ix.school,ix.tuition,ix.vehicle].some(i=>i<0)) throw new Error('CSV needs student_name, class_name, school_fee, tuition_fee and vehicle_fee columns.');
       const preview: Array<{student_id:string;student_name:string;school_fee:number;tuition_fee:number;vehicle_fee:number;opening_paid:number}> = [];
-      let issues=0;
+      let issues=0; const seenStudents=new Set<string>();
       for (const cells of rows.slice(1)) {
         const v=(i:number)=>i<0?'':(cells[i]||'').trim();
         const cls=groups.find(g=>[g.code,g.name_en,g.name_or].some(n=>normalizeCsvKey(n)===normalizeCsvKey(v(ix.cls))));
         const candidates=students.filter(s=>s.active&&s.class_id===cls?.id&&normalizeCsvKey(s.student_name)===normalizeCsvKey(v(ix.name))&&(!v(ix.roll)||normalizeCsvKey(s.roll_no||'')===normalizeCsvKey(v(ix.roll))));
         const nums=[Number(v(ix.school)),Number(v(ix.tuition)),Number(v(ix.vehicle)),ix.paid<0?0:Number(v(ix.paid)||0)];
-        if(!cls||candidates.length!==1||nums.some(n=>!Number.isFinite(n)||n<0)){issues++;continue;}
+        if(!cls||candidates.length!==1||nums.some(n=>!Number.isFinite(n)||n<0)||seenStudents.has(candidates[0]?.id||'')){issues++;continue;}
+        seenStudents.add(candidates[0].id);
         preview.push({student_id:candidates[0].id,student_name:candidates[0].student_name,school_fee:nums[0],tuition_fee:nums[1],vehicle_fee:nums[2],opening_paid:nums[3]});
       }
       if(!preview.length) throw new Error('No unambiguous valid fee rows matched existing students. Check names, classes and roll numbers.');
