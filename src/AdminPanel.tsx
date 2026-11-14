@@ -9,7 +9,8 @@ type ClassGroup = { id: string; code: string; name_en: string; name_or: string; 
 type StudentImportRow = { student_name: string; class_id: string; roll_no: string | null; dob: string | null; father_name: string | null; mother_name: string | null; mobile_number: string | null };
 type Student = { id: string; student_name: string; roll_no: string | null; mobile_number: string | null; active: boolean; class_id: string; dob?: string | null; father_name?: string | null; mother_name?: string | null };
 type Enquiry = { id: string; student_name: string; parent_name: string; mobile_number: string; class_applied: string; status: string; created_at: string };
-type TeacherProfile = { auth_user_id: string; full_name: string; phone_number: string; employee_code: string | null; designation: string; active: boolean };\ntype LearningNote = { id: string; title: string; subject: string; medium: string; class_id: string; content: unknown; created_at: string };
+type TeacherProfile = { auth_user_id: string; full_name: string; phone_number: string; employee_code: string | null; designation: string; active: boolean };
+type LearningNote = { id: string; title: string; subject: string; medium: string; class_id: string; content: unknown; created_at: string };
 const labels: Record<Tab, string> = { dashboard: 'Dashboard', students: 'Students', teachers: 'Teachers', learning: 'Learning Review', admissions: 'Admission Enquiries', notices: 'Notices', settings: 'School Settings' };
 
 function parseCsvRows(input: string): string[][] {
@@ -52,7 +53,8 @@ export default function AdminPanel() {
   const [counts, setCounts] = useState({ students: 0, teachers: 0, enquiries: 0, notices: 0 });
   const [students, setStudents] = useState<Student[]>([]);
   const [teachers, setTeachers] = useState<TeacherProfile[]>([]);
-  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);\n  const [pendingNotes, setPendingNotes] = useState<LearningNote[]>([]);
+  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
+  const [pendingNotes, setPendingNotes] = useState<LearningNote[]>([]);
   const [groups, setGroups] = useState<ClassGroup[]>([]);
   const [showStudentForm, setShowStudentForm] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
@@ -91,7 +93,8 @@ export default function AdminPanel() {
     if (classResult.data) setGroups(classResult.data as ClassGroup[]);
     if (studentResult.data) setStudents(studentResult.data as Student[]);
     if (teacherResult.data) setTeachers(teacherResult.data as TeacherProfile[]);
-    if (enquiryResult.data) setEnquiries(enquiryResult.data as Enquiry[]);\n    if (noteResult.data) setPendingNotes(noteResult.data as LearningNote[]);
+    if (enquiryResult.data) setEnquiries(enquiryResult.data as Enquiry[]);
+    if (noteResult.data) setPendingNotes(noteResult.data as LearningNote[]);
     const failed = [s.error,t.error,e.error,n.error,classResult.error,studentResult.error,teacherResult.error,enquiryResult.error,noteResult.error].find(Boolean);
     if (failed) setError('Some Admin data could not be loaded. Check the database permissions and refresh.');
   }, []);
@@ -257,7 +260,18 @@ export default function AdminPanel() {
     else { setMessage('Teacher account and class assignments created. Share the initial password privately with the teacher.'); setTeacherForm({ full_name: '', phone_number: '', password: '', employee_code: '', designation: 'Teacher', qualification: '', subject: '' }); setTeacherClassIds([]); setShowTeacherForm(false); await loadData(); }
     setBusy(false);
   }
-  async function reviewLearningNote(note: LearningNote, decision: 'published' | 'rejected') {\n    if (!supabase) return;\n    const { data: { user } } = await supabase.auth.getUser(); if (!user) return;\n    setBusy(true); setError(''); setMessage('');\n    const patch = decision === 'published' ? { status: 'published', approved_by: user.id, published_at: new Date().toISOString() } : { status: 'rejected', approved_by: user.id };\n    const { error: updateError } = await supabase.from('daily_notes').update(patch).eq('id', note.id).eq('status','pending_review');\n    if (updateError) setError('Learning note review failed. Please retry.');\n    else { setMessage(decision === 'published' ? 'Learning note published for its class.' : 'Learning note rejected.'); await loadData(); }\n    setBusy(false);\n  }\n\n  async function publishNotice(event: FormEvent) {
+  async function reviewLearningNote(note: LearningNote, decision: 'published' | 'rejected') {
+    if (!supabase) return;
+    const { data: { user } } = await supabase.auth.getUser(); if (!user) return;
+    setBusy(true); setError(''); setMessage('');
+    const patch = decision === 'published' ? { status: 'published', approved_by: user.id, published_at: new Date().toISOString() } : { status: 'rejected', approved_by: user.id };
+    const { error: updateError } = await supabase.from('daily_notes').update(patch).eq('id', note.id).eq('status','pending_review');
+    if (updateError) setError('Learning note review failed. Please retry.');
+    else { setMessage(decision === 'published' ? 'Learning note published for its class.' : 'Learning note rejected.'); await loadData(); }
+    setBusy(false);
+  }
+
+  async function publishNotice(event: FormEvent) {
     event.preventDefault(); if (!supabase) return;
     const { data: { user } } = await supabase.auth.getUser(); if (!user) return;
     setBusy(true); setError(''); setMessage('');
