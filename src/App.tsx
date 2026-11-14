@@ -17,7 +17,7 @@ export default function App(){
 }
 
 function PublicHome(){
- const[odia,setOdia]=useState(true),[menu,setMenu]=useState(false),[admission,setAdmission]=useState(false),[notice,setNotice]=useState(''),[sending,setSending]=useState(false),[installPrompt,setInstallPrompt]=useState<BeforeInstallPromptEvent|null>(null),[isInstalled,setIsInstalled]=useState(false);
+ const[odia,setOdia]=useState(true),[menu,setMenu]=useState(false),[admission,setAdmission]=useState(false),[notice,setNotice]=useState(''),[sending,setSending]=useState(false),[installPrompt,setInstallPrompt]=useState<BeforeInstallPromptEvent|null>(null),[isInstalled,setIsInstalled]=useState(()=>window.matchMedia('(display-mode: standalone)').matches||(window.navigator as Navigator & {standalone?:boolean}).standalone===true);
  const[groups,setGroups]=useState<Cl[]>([]),[gallery,setGallery]=useState<Media[]>([]),[wins,setWins]=useState<Media[]>([]);
  const[form,setForm]=useState({student_name:'',parent_name:'',mobile_number:'',class_applied:'',message:''});
  const t=(o:string,e:string)=>odia?o:e;
