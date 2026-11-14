@@ -15,7 +15,7 @@ Copy .env.example to .env.local, set the Supabase URL and publishable key, then 
 
 Never put service-role/secret keys, passwords, Razorpay credentials, AI keys or student personal data in frontend code or GitHub. These belong in protected server-side secrets and RLS-controlled workflows.
 
-Capacity values shown on the homepage are planned targets, not verified enrolment statistics. Student/teacher authentication, full fee and exam workflows, AI and payment integration remain future implementation tasks; the Admin panel foundation is now present.
+Capacity values shown on the homepage are planned targets, not verified enrolment statistics. Teacher authentication and daily-note review are implemented in the current build. Student OTP sign-in, complete student portal, fee and exam workflows, AI and payment integration still require implementation and live verification.
 
 
 ## Admin panel foundation
@@ -26,7 +26,7 @@ Capacity values shown on the homepage are planned targets, not verified enrolmen
 - Configure Netlify environment variables `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_ADMIN_LOGIN_EMAIL` for the frontend. The publishable key is intended for browser use; never use a Supabase secret/service-role key in the frontend.
 - Netlify SPA redirects are defined in `public/_redirects`.
 
-The Admin panel currently provides secure role-gated access, dashboard counts, student record creation, teacher profile listing, admission enquiry viewing, and school notice publishing. Additional editing, teacher provisioning, fee controls, exam controls, AI settings and protected secret management remain future implementation tasks.
+The Admin panel currently provides secure role-gated access, dashboard counts, student record creation/import, teacher provisioning, admission enquiry viewing, school notice publishing, and a Learning Review queue to approve or reject teacher-submitted daily notes. Full site-content editing, fee controls, exam controls, AI settings and protected secret management remain future implementation tasks.
 
 ## Student CSV import
 
