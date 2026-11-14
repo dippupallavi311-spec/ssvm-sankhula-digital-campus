@@ -10,7 +10,7 @@ Mobile-first PWA foundation for Saraswati Shishu Vidya Mandir, Sankhula, Bhadrak
 - PWA manifest, placeholder crest icon and service-worker shell caching
 - Secure teacher phone/password login at `/teacher`, restricted to Admin-created teacher accounts
 - Teacher daily-learning-note submission with Admin approval before publication
-- Student access information page at `/student`; student sign-in remains disabled until verified OTP delivery is configured
+- Student access information page at `/student`; the requested six-field student sign-in is not enabled yet because matching name, phone, class, parent names and DOB alone is not safe authentication
 - No demo student or teacher records
 
 ## Setup
@@ -18,7 +18,7 @@ Copy .env.example to .env.local, set the Supabase URL and publishable key, then 
 
 Never put service-role/secret keys, passwords, Razorpay credentials, AI keys or student personal data in frontend code or GitHub. These belong in protected server-side secrets and RLS-controlled workflows.
 
-Capacity values shown on the homepage are planned targets, not verified enrolment statistics. Teacher authentication and daily-note review are implemented in the current build. Student OTP sign-in, complete student portal, fee and exam workflows, AI and payment integration still require implementation and live verification.
+Capacity values shown on the homepage are planned targets, not verified enrolment statistics. Teacher authentication and daily-note review are implemented. Admin fee assessment and reviewed fee CSV import are implemented; Admin can record verified offline payments and balances include those entries. Admin can create class-wise MCQ exam drafts, add four-option questions with answer keys, and publish only when question marks equal the exam total. Student exam-taking/results, downloadable receipts, online gateway checkout, automated monthly fee rules, student sign-in/portal, AI and full PWA live verification remain incomplete.
 
 
 ## Admin panel foundation
@@ -29,7 +29,7 @@ Capacity values shown on the homepage are planned targets, not verified enrolmen
 - Configure Netlify environment variables `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_ADMIN_LOGIN_EMAIL` for the frontend. The publishable key is intended for browser use; never use a Supabase secret/service-role key in the frontend.
 - Netlify SPA redirects are defined in `public/_redirects`.
 
-The Admin panel currently provides secure role-gated access, dashboard counts, student record creation/import, teacher provisioning, admission enquiry viewing, school notice publishing, a Learning Review queue, and a fee-assessment foundation. Admin can create or update a student's school, tuition and vehicle fees for a billing period, record opening paid amounts, set due dates, review assessed balances, and import a reviewed fee CSV after matching rows to existing student name/class/roll records. Payment receipts, online payments, automated monthly increases and due notifications are not implemented yet. Full site-content editing, exam controls, AI settings and protected secret management remain future implementation tasks.
+The Admin panel currently provides secure role-gated access, dashboard counts, student record creation/import, teacher provisioning, admission enquiry viewing, school notice publishing, a Learning Review queue, fee assessments and verified offline-payment ledger, and class-wise online exam authoring/publishing. Admin can create or update a student's school, tuition and vehicle fees for a billing period, record opening paid amounts, set due dates, review assessed balances, and import a reviewed fee CSV after matching rows to existing student name/class/roll records. Downloadable receipts, online gateway payments, automated monthly increases and due notifications are not implemented yet. Full site-content editing, exam-taking/results, AI settings and protected secret management remain future implementation tasks.
 
 ## Student CSV import
 
