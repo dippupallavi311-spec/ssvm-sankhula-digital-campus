@@ -21,7 +21,17 @@ function PublicHome(){
  const[groups,setGroups]=useState<Cl[]>([]),[gallery,setGallery]=useState<Media[]>([]),[wins,setWins]=useState<Media[]>([]);
  const[form,setForm]=useState({student_name:'',parent_name:'',mobile_number:'',class_applied:'',message:''});
  const t=(o:string,e:string)=>odia?o:e;
- useEffect(()=>{\n  const standalone=window.matchMedia('(display-mode: standalone)').matches || (window.navigator as Navigator & {standalone?:boolean}).standalone===true;\n  setIsInstalled(standalone);\n  const onPrompt=(event:Event)=>{event.preventDefault();setInstallPrompt(event as BeforeInstallPromptEvent)};\n  const onInstalled=()=>{setIsInstalled(true);setInstallPrompt(null);setNotice(t('App ସଫଳତାର ସହିତ install ହୋଇଛି।','The app was installed successfully.'))};\n  window.addEventListener('beforeinstallprompt',onPrompt);window.addEventListener('appinstalled',onInstalled);\n  return()=>{window.removeEventListener('beforeinstallprompt',onPrompt);window.removeEventListener('appinstalled',onInstalled)};\n },[]);\n async function installApp(){\n  if(installPrompt){await installPrompt.prompt();const choice=await installPrompt.userChoice;if(choice.outcome==='accepted')setIsInstalled(true);setInstallPrompt(null);return;}\n  setNotice(t('Chrome ର menu (⋮) ଖୋଲି “Add to Home screen” କିମ୍ବା “Install app” ବାଛନ୍ତୁ।','Open your browser menu (⋮) and choose “Add to Home screen” or “Install app”.'));\n }\n useEffect(()=>{if(!supabase)return;
+ useEffect(()=>{
+  const standalone=window.matchMedia('(display-mode: standalone)').matches || (window.navigator as Navigator & {standalone?:boolean}).standalone===true;
+  setIsInstalled(standalone);
+  const onPrompt=(event:Event)=>{event.preventDefault();setInstallPrompt(event as BeforeInstallPromptEvent)};
+  const onInstalled=()=>{setIsInstalled(true);setInstallPrompt(null);setNotice(t('App ସଫଳତାର ସହିତ install ହୋଇଛି।','The app was installed successfully.'))};
+  window.addEventListener('beforeinstallprompt',onPrompt);window.addEventListener('appinstalled',onInstalled);
+  return()=>{window.removeEventListener('beforeinstallprompt',onPrompt);window.removeEventListener('appinstalled',onInstalled)}; 
+ },[]);\n async function installApp(){
+  if(installPrompt){await installPrompt.prompt();const choice=await installPrompt.userChoice;if(choice.outcome==='accepted')setIsInstalled(true);setInstallPrompt(null);return;}
+  setNotice(t('Chrome ର menu (⋮) ଖୋଲି “Add to Home screen” କିମ୍ବା “Install app” ବାଛନ୍ତୁ।','Open your browser menu (⋮) and choose “Add to Home screen” or “Install app”.')); 
+ }\n useEffect(()=>{if(!supabase)return;
   supabase.from('class_groups').select('id,name_en,name_or,sort_order').eq('active',true).order('sort_order').then(({data})=>{if(data)setGroups(data as Cl[])});
   supabase.from('gallery_items').select('id,title,image_url').eq('published',true).order('display_order').then(({data})=>{if(data)setGallery(data as Media[])});
   supabase.from('achievements').select('id,title,description,image_url').eq('published',true).order('display_order').then(({data})=>{if(data)setWins(data as Media[])});
