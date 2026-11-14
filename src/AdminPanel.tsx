@@ -109,7 +109,9 @@ export default function AdminPanel() {
       supabase.from('admission_enquiries').select('id,student_name,parent_name,mobile_number,class_applied,status,created_at').order('created_at', { ascending: false }).limit(100),
       supabase.from('daily_notes').select('id,title,subject,medium,class_id,content,created_at').eq('status','pending_review').order('created_at',{ascending:false}).limit(100),
       supabase.from('fee_assessments').select('id,student_id,academic_year,fee_period,school_fee,tuition_fee,vehicle_fee,opening_paid,due_date,notes,students(student_name,roll_no)').order('fee_period',{ascending:false}).limit(500),
-      supabase.from('fee_payments').select('id,fee_assessment_id,student_id,amount,payment_method,transaction_reference,status,submitted_at,admin_note').order('submitted_at',{ascending:false}).limit(500),\n      supabase.from('online_exams').select('id,class_id,subject,title,instructions,duration_minutes,start_at,end_at,total_marks,status,results_published,created_by').order('created_at',{ascending:false}).limit(100),\n      supabase.from('exam_questions').select('id,exam_id,question_order,question_text,options,marks').order('question_order').limit(1000)
+      supabase.from('fee_payments').select('id,fee_assessment_id,student_id,amount,payment_method,transaction_reference,status,submitted_at,admin_note').order('submitted_at',{ascending:false}).limit(500),
+      supabase.from('online_exams').select('id,class_id,subject,title,instructions,duration_minutes,start_at,end_at,total_marks,status,results_published,created_by').order('created_at',{ascending:false}).limit(100),
+      supabase.from('exam_questions').select('id,exam_id,question_order,question_text,options,marks').order('question_order').limit(1000)
     ]);
     setCounts({ students: s.count || 0, teachers: t.count || 0, enquiries: e.count || 0, notices: n.count || 0 });
     if (classResult.data) setGroups(classResult.data as ClassGroup[]);
@@ -118,7 +120,9 @@ export default function AdminPanel() {
     if (enquiryResult.data) setEnquiries(enquiryResult.data as Enquiry[]);
     if (noteResult.data) setPendingNotes(noteResult.data as LearningNote[]);
     if (feeResult.data) setFeeAssessments(feeResult.data as unknown as FeeAssessment[]);
-    if (paymentResult.data) setFeePayments(paymentResult.data as FeePayment[]);\n    if (examResult.data) setOnlineExams(examResult.data as OnlineExam[]);\n    if (questionResult.data) setExamQuestions(questionResult.data as ExamQuestion[]);
+    if (paymentResult.data) setFeePayments(paymentResult.data as FeePayment[]);
+    if (examResult.data) setOnlineExams(examResult.data as OnlineExam[]);
+    if (questionResult.data) setExamQuestions(questionResult.data as ExamQuestion[]);
     const failed = [s.error,t.error,e.error,n.error,classResult.error,studentResult.error,teacherResult.error,enquiryResult.error,noteResult.error,feeResult.error,paymentResult.error,examResult.error,questionResult.error].find(Boolean);
     if (failed) setError('Some Admin data could not be loaded. Check the database permissions and refresh.');
   }, []);
