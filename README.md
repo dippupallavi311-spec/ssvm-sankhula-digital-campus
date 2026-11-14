@@ -29,7 +29,7 @@ Capacity values shown on the homepage are planned targets, not verified enrolmen
 - Configure Netlify environment variables `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_ADMIN_LOGIN_EMAIL` for the frontend. The publishable key is intended for browser use; never use a Supabase secret/service-role key in the frontend.
 - Netlify SPA redirects are defined in `public/_redirects`.
 
-The Admin panel currently provides secure role-gated access, dashboard counts, student record creation/import, teacher provisioning, admission enquiry viewing, school notice publishing, and a Learning Review queue to approve or reject teacher-submitted daily notes. Full site-content editing, fee controls, exam controls, AI settings and protected secret management remain future implementation tasks.
+The Admin panel currently provides secure role-gated access, dashboard counts, student record creation/import, teacher provisioning, admission enquiry viewing, school notice publishing, a Learning Review queue, and a fee-assessment foundation. Admin can create or update a student's school, tuition and vehicle fees for a billing period, record opening paid amounts, set due dates, and review assessed balances. Payment receipts, online payments, automated monthly increases and due notifications are not implemented yet. Full site-content editing, exam controls, AI settings and protected secret management remain future implementation tasks.
 
 ## Student CSV import
 
