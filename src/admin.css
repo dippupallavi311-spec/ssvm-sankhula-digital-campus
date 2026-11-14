@@ -16,3 +16,5 @@
 .teacher-note-row p{font-size:12px;line-height:1.6;color:#52665a;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
 .teacher-note-row .admin-row-actions{flex-wrap:wrap}
 @media(max-width:650px){.teacher-note-row{flex-direction:column}.teacher-note-row .admin-row-actions{width:100%}.teacher-note-row .admin-row-actions button{min-height:34px}}
+
+.admin-muted-note{margin:14px 0 0;color:#77867b;font-size:11px;line-height:1.6}
