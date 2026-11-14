@@ -87,7 +87,8 @@ export default function AdminPanel() {
       supabase.from('class_groups').select('id,code,name_en,name_or,sort_order').order('sort_order'),
       supabase.from('students').select('id,student_name,roll_no,mobile_number,active,class_id,dob,father_name,mother_name').order('student_name').limit(500),
       supabase.from('teacher_details').select('auth_user_id,full_name,phone_number,employee_code,designation,active').order('full_name').limit(100),
-      supabase.from('admission_enquiries').select('id,student_name,parent_name,mobile_number,class_applied,status,created_at').order('created_at', { ascending: false }).limit(100)
+      supabase.from('admission_enquiries').select('id,student_name,parent_name,mobile_number,class_applied,status,created_at').order('created_at', { ascending: false }).limit(100),
+      supabase.from('daily_notes').select('id,title,subject,medium,class_id,content,created_at').eq('status','pending_review').order('created_at',{ascending:false}).limit(100)
     ]);
     setCounts({ students: s.count || 0, teachers: t.count || 0, enquiries: e.count || 0, notices: n.count || 0 });
     if (classResult.data) setGroups(classResult.data as ClassGroup[]);
