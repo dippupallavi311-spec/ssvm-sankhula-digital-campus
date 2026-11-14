@@ -4,13 +4,13 @@ import { supabase } from './lib/supabase';
 import { Activity, Bell, BookOpen, ChevronRight, GraduationCap, LayoutDashboard, LogOut, Megaphone, Plus, School, ShieldCheck, Users, Pencil, UserX } from 'lucide-react';
 import './admin.css';
 
-type Tab = 'dashboard' | 'students' | 'teachers' | 'admissions' | 'notices' | 'settings';
+type Tab = 'dashboard' | 'students' | 'teachers' | 'learning' | 'admissions' | 'notices' | 'settings';
 type ClassGroup = { id: string; code: string; name_en: string; name_or: string; sort_order: number };
 type StudentImportRow = { student_name: string; class_id: string; roll_no: string | null; dob: string | null; father_name: string | null; mother_name: string | null; mobile_number: string | null };
 type Student = { id: string; student_name: string; roll_no: string | null; mobile_number: string | null; active: boolean; class_id: string; dob?: string | null; father_name?: string | null; mother_name?: string | null };
 type Enquiry = { id: string; student_name: string; parent_name: string; mobile_number: string; class_applied: string; status: string; created_at: string };
-type TeacherProfile = { auth_user_id: string; full_name: string; phone_number: string; employee_code: string | null; designation: string; active: boolean };
-const labels: Record<Tab, string> = { dashboard: 'Dashboard', students: 'Students', teachers: 'Teachers', admissions: 'Admission Enquiries', notices: 'Notices', settings: 'School Settings' };
+type TeacherProfile = { auth_user_id: string; full_name: string; phone_number: string; employee_code: string | null; designation: string; active: boolean };\ntype LearningNote = { id: string; title: string; subject: string; medium: string; class_id: string; content: unknown; created_at: string };
+const labels: Record<Tab, string> = { dashboard: 'Dashboard', students: 'Students', teachers: 'Teachers', learning: 'Learning Review', admissions: 'Admission Enquiries', notices: 'Notices', settings: 'School Settings' };
 
 function parseCsvRows(input: string): string[][] {
   const rows: string[][] = [];
@@ -52,7 +52,7 @@ export default function AdminPanel() {
   const [counts, setCounts] = useState({ students: 0, teachers: 0, enquiries: 0, notices: 0 });
   const [students, setStudents] = useState<Student[]>([]);
   const [teachers, setTeachers] = useState<TeacherProfile[]>([]);
-  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
+  const [enquiries, setEnquiries] = useState<Enquiry[]>([]);\n  const [pendingNotes, setPendingNotes] = useState<LearningNote[]>([]);
   const [groups, setGroups] = useState<ClassGroup[]>([]);
   const [showStudentForm, setShowStudentForm] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
@@ -77,7 +77,7 @@ export default function AdminPanel() {
 
   const loadData = useCallback(async () => {
     if (!supabase) return;
-    const [s, t, e, n, classResult, studentResult, teacherResult, enquiryResult] = await Promise.all([
+    const [s, t, e, n, classResult, studentResult, teacherResult, enquiryResult, noteResult] = await Promise.all([
       supabase.from('students').select('*', { count: 'exact', head: true }),
       supabase.from('user_profiles').select('*', { count: 'exact', head: true }).eq('role', 'teacher').eq('active', true),
       supabase.from('admission_enquiries').select('*', { count: 'exact', head: true }),
@@ -91,8 +91,8 @@ export default function AdminPanel() {
     if (classResult.data) setGroups(classResult.data as ClassGroup[]);
     if (studentResult.data) setStudents(studentResult.data as Student[]);
     if (teacherResult.data) setTeachers(teacherResult.data as TeacherProfile[]);
-    if (enquiryResult.data) setEnquiries(enquiryResult.data as Enquiry[]);
-    const failed = [s.error,t.error,e.error,n.error,classResult.error,studentResult.error,teacherResult.error,enquiryResult.error].find(Boolean);
+    if (enquiryResult.data) setEnquiries(enquiryResult.data as Enquiry[]);\n    if (noteResult.data) setPendingNotes(noteResult.data as LearningNote[]);
+    const failed = [s.error,t.error,e.error,n.error,classResult.error,studentResult.error,teacherResult.error,enquiryResult.error,noteResult.error].find(Boolean);
     if (failed) setError('Some Admin data could not be loaded. Check the database permissions and refresh.');
   }, []);
 
@@ -257,7 +257,7 @@ export default function AdminPanel() {
     else { setMessage('Teacher account and class assignments created. Share the initial password privately with the teacher.'); setTeacherForm({ full_name: '', phone_number: '', password: '', employee_code: '', designation: 'Teacher', qualification: '', subject: '' }); setTeacherClassIds([]); setShowTeacherForm(false); await loadData(); }
     setBusy(false);
   }
-  async function publishNotice(event: FormEvent) {
+  async function reviewLearningNote(note: LearningNote, decision: 'published' | 'rejected') {\n    if (!supabase) return;\n    const { data: { user } } = await supabase.auth.getUser(); if (!user) return;\n    setBusy(true); setError(''); setMessage('');\n    const patch = decision === 'published' ? { status: 'published', approved_by: user.id, published_at: new Date().toISOString() } : { status: 'rejected', approved_by: user.id };\n    const { error: updateError } = await supabase.from('daily_notes').update(patch).eq('id', note.id).eq('status','pending_review');\n    if (updateError) setError('Learning note review failed. Please retry.');\n    else { setMessage(decision === 'published' ? 'Learning note published for its class.' : 'Learning note rejected.'); await loadData(); }\n    setBusy(false);\n  }\n\n  async function publishNotice(event: FormEvent) {
     event.preventDefault(); if (!supabase) return;
     const { data: { user } } = await supabase.auth.getUser(); if (!user) return;
     setBusy(true); setError(''); setMessage('');
@@ -277,7 +277,7 @@ export default function AdminPanel() {
     <small>Admin accounts are provisioned privately. Login requires only the Admin password; the official account email is configured securely by the school administrator.</small>
   </form></div>;
 
-  const nav: { id: Tab; icon: typeof LayoutDashboard }[] = [{id:'dashboard',icon:LayoutDashboard},{id:'students',icon:GraduationCap},{id:'teachers',icon:Users},{id:'admissions',icon:BookOpen},{id:'notices',icon:Megaphone},{id:'settings',icon:ShieldCheck}];
+  const nav: { id: Tab; icon: typeof LayoutDashboard }[] = [{id:'dashboard',icon:LayoutDashboard},{id:'students',icon:GraduationCap},{id:'teachers',icon:Users},{id:'learning',icon:BookOpen},{id:'admissions',icon:BookOpen},{id:'notices',icon:Megaphone},{id:'settings',icon:ShieldCheck}];
   return <div className="admin-shell">
     <aside className="admin-sidebar"><div className="admin-side-brand"><div className="admin-brand-mark"><School/></div><div><b>SSVM SANKHULA</b><small>Digital Campus</small></div></div><span className="admin-side-label">MAIN MENU</span>
       {nav.map(item=>{const Icon=item.icon;return <button key={item.id} className={tab===item.id?'active':''} onClick={()=>{setTab(item.id);setError('');setMessage('')}}><Icon size={18}/>{labels[item.id]}{tab===item.id&&<ChevronRight size={15}/>}</button>})}
@@ -312,6 +312,7 @@ export default function AdminPanel() {
         {showTeacherForm&&<form className="admin-student-form" onSubmit={createTeacher}><label>Teacher Name<input required minLength={2} value={teacherForm.full_name} onChange={e=>setTeacherForm({...teacherForm,full_name:e.target.value})}/></label><label>Mobile Number<input required inputMode="numeric" maxLength={10} value={teacherForm.phone_number} onChange={e=>setTeacherForm({...teacherForm,phone_number:e.target.value.replace(/\D/g,'').slice(0,10)})}/></label><label>Initial Password<input required type="password" minLength={10} autoComplete="new-password" value={teacherForm.password} onChange={e=>setTeacherForm({...teacherForm,password:e.target.value})}/></label><label>Employee Code<input value={teacherForm.employee_code} onChange={e=>setTeacherForm({...teacherForm,employee_code:e.target.value})}/></label><label>Designation<input value={teacherForm.designation} onChange={e=>setTeacherForm({...teacherForm,designation:e.target.value})}/></label><label>Qualification<input value={teacherForm.qualification} onChange={e=>setTeacherForm({...teacherForm,qualification:e.target.value})}/></label><label>Subject<input required value={teacherForm.subject} onChange={e=>setTeacherForm({...teacherForm,subject:e.target.value})} placeholder="e.g. Mathematics"/></label><div className="teacher-class-picker"><b>Assigned Classes</b><div>{groups.map(g=><label key={g.id}><input type="checkbox" checked={teacherClassIds.includes(g.id)} onChange={e=>setTeacherClassIds(prev=>e.target.checked?[...prev,g.id]:prev.filter(id=>id!==g.id))}/>{g.name_en}</label>)}</div></div><div className="admin-form-actions"><button type="button" className="admin-secondary" onClick={()=>setShowTeacherForm(false)}>Cancel</button><button className="admin-primary" disabled={busy||teacherClassIds.length===0}>{busy?'Creating…':'Create Teacher Account'}</button></div></form>}
         <div className="admin-table-wrap"><table><thead><tr><th>Teacher</th><th>Phone</th><th>Employee Code</th><th>Designation</th><th>Status</th></tr></thead><tbody>{teachers.map(t=><tr key={t.auth_user_id}><td>{t.full_name}</td><td>{t.phone_number}</td><td>{t.employee_code||'—'}</td><td>{t.designation}</td><td><span className={t.active?'status-active':'status-inactive'}>{t.active?'Active':'Inactive'}</span></td></tr>)}</tbody></table>{teachers.length===0&&<div className="admin-empty">No teacher accounts yet. Create the first verified teacher account.</div>}</div>
       </section>}
+      {tab==='learning'&&<section className="admin-panel-card"><div className="admin-card-heading"><div><h3>Daily Learning Note Approval</h3><p>Review teacher submissions before they appear in the student learning area.</p></div><span className="admin-count-pill">{pendingNotes.length} pending</span></div>{pendingNotes.map(note=><article className="teacher-note-row" key={note.id}><div><b>{note.title}</b><span>{groups.find(g=>g.id===note.class_id)?.name_en||'Class'} · {note.subject} · {note.medium}</span><p>{typeof note.content==='object'&&note.content!==null&&'text' in note.content?String((note.content as {text:unknown}).text):JSON.stringify(note.content)}</p><small>{new Date(note.created_at).toLocaleString()}</small></div><div className="admin-row-actions"><button type="button" className="admin-primary compact" disabled={busy} onClick={()=>reviewLearningNote(note,'published')}>Approve & Publish</button><button type="button" className="admin-secondary" disabled={busy} onClick={()=>reviewLearningNote(note,'rejected')}>Reject</button></div></article>)}{pendingNotes.length===0&&<div className="admin-empty">No learning notes waiting for review.</div>}</section>}
       {tab==='admissions'&&<section className="admin-panel-card"><div className="admin-card-heading"><div><h3>Admission Enquiries</h3><p>Recent public website enquiries</p></div></div><div className="admin-table-wrap"><table><thead><tr><th>Student</th><th>Parent</th><th>Mobile</th><th>Class</th><th>Status</th></tr></thead><tbody>{enquiries.map(e=><tr key={e.id}><td>{e.student_name}</td><td>{e.parent_name}</td><td>{e.mobile_number}</td><td>{e.class_applied}</td><td>{e.status}</td></tr>)}</tbody></table>{enquiries.length===0&&<div className="admin-empty">No admission enquiries received yet.</div>}</div></section>}
       {tab==='notices'&&<section className="admin-panel-card"><div className="admin-card-heading"><div><h3>Publish a School Notice</h3><p>Notices are stored in the campus database.</p></div></div><form className="admin-notice-form" onSubmit={publishNotice}><label>Notice Title<input required value={noticeForm.title} onChange={e=>setNoticeForm({...noticeForm,title:e.target.value})}/></label><label>Message<textarea required rows={5} value={noticeForm.body} onChange={e=>setNoticeForm({...noticeForm,body:e.target.value})}/></label><label>Audience<select value={noticeForm.audience} onChange={e=>setNoticeForm({...noticeForm,audience:e.target.value})}><option value="all">Students and Teachers</option><option value="students">Students only</option><option value="teachers">Teachers only</option><option value="public">Public</option></select></label><button className="admin-primary" disabled={busy}>{busy?'Publishing…':'Publish Notice'}</button></form></section>}
       {tab==='settings'&&<section className="admin-panel-card"><div className="admin-card-heading"><div><h3>School Settings</h3><p>Protected configuration areas</p></div></div><div className="admin-settings-list"><div><ShieldCheck/><span><b>Admin security</b><small>Role is verified against the protected user_profiles table.</small></span><span className="status-active">Protected</span></div><div><School/><span><b>School identity</b><small>Logo, leadership, contact details and homepage content.</small></span><span className="status-inactive">Next build stage</span></div><div><Bell/><span><b>AI, payment and push credentials</b><small>Must be stored as server-side secrets, never in browser storage.</small></span><span className="status-inactive">Not configured</span></div></div></section>}
